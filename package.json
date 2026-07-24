@@ -1,0 +1,21 @@
+{
+  "name": "clinic-receptionist-api",
+  "version": "1.0.0",
+  "description": "Backend API for the AI Clinic Receptionist demo — endpoints Retell calls mid-conversation.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.2.0",
+    "pg": "^8.12.0"
+  }
+}
