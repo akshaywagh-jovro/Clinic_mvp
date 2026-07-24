@@ -53,6 +53,9 @@ shapes work without any change to the handlers.
 │   ├── schema.sql      # tables + indexes
 │   ├── seed.sql        # demo physicians, patients, and a week of slots
 │   └── functions.sql   # reference: the query behind each endpoint
+├── Dockerfile
+├── docker-compose.yml
+├── .dockerignore
 ├── .env.example
 └── package.json
 ```
@@ -103,6 +106,60 @@ npm run dev     # auto-restart on file changes
 npm start
 ```
 Server listens on `http://localhost:3000` (override with `PORT`).
+
+---
+
+## Run with Docker
+
+Use this instead of step 5 above if you're deploying to a VM. Steps 1–4 (clone, `.env`,
+schema/seed) still apply — Docker just replaces `npm start`. The database itself is **not**
+containerized; it's the same external Azure PostgreSQL instance either way.
+
+### 1. Prerequisites
+- [Docker Engine](https://docs.docker.com/engine/install/) installed on the VM (includes the
+  `docker compose` plugin on any reasonably current install)
+- `.env` present in the project root (same file as local setup — see step 3 above)
+
+### 2. Build and start
+```bash
+docker compose up -d --build
+```
+This builds the image from the `Dockerfile` and starts a container named `clinicmvp-api-1`,
+mapping port 3000 and loading `.env` into the container's environment.
+
+### 3. Check it's healthy
+```bash
+docker compose ps          # STATUS column should say "healthy" after ~10s
+docker compose logs -f api # follow logs; Ctrl+C to stop watching (container keeps running)
+curl http://localhost:3000/health
+```
+
+### 4. Stop / restart
+```bash
+docker compose down        # stop and remove the container
+docker compose restart     # restart without rebuilding
+docker compose up -d --build   # rebuild after pulling new code (git pull first)
+```
+
+### Firewall gotcha: Azure Postgres only allows known IPs
+
+Azure PostgreSQL's firewall allowlists by **source IP**, and a container's outbound traffic
+doesn't always look like it's coming from the host machine — on some setups (notably Docker
+Desktop on Mac) containers egress through a different IP than the host itself. On a plain Linux
+VM this is normally *not* an issue (Docker's default bridge network NATs container traffic out
+through the VM's own IP), but if `/lookup-patient` or any DB-touching endpoint hangs and then
+times out instead of returning JSON, check this first:
+
+1. Confirm the VM's outbound IP: `curl https://api.ipify.org` (run this on the VM, outside Docker)
+2. In the Azure Portal, go to the PostgreSQL server → **Networking** → firewall rules, and make
+   sure that IP (or the VM's subnet, if using VNet integration) is allowed.
+3. Re-test: `curl -X POST http://localhost:3000/lookup-patient -H 'Content-Type: application/json' -d '{"health_card_number":"1234567890AB","date_of_birth":"1985-03-12"}'`
+
+### Exposing it to Retell
+
+Retell needs a **public HTTPS URL**. The container itself only serves plain HTTP on port 3000 —
+for a real deployment, put a reverse proxy (nginx, Caddy, or Azure's own Application Gateway/
+Front Door) in front of it to terminate TLS, rather than exposing port 3000 directly.
 
 ---
 
